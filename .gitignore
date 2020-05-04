@@ -1,6 +1,7 @@
 /npy
 /pth
 /recon
+/dc_img
 *.png
 *.pth
 *.npy

@@ -9,17 +9,21 @@ from torchvision.datasets import MNIST
 import os
 import argparse
 
+from module import custom_dataset
+
 parser = argparse.ArgumentParser(description='VAE MNIST Example')
 parser.add_argument('--batch-size', type=int, default=128, metavar='N',
                     help='input batch size for training (default: 128)')
-parser.add_argument('--epochs', type=int, default=10, metavar='N',
-                    help='number of epochs to train (default: 10)')
+parser.add_argument('--epochs', type=int, default=30, metavar='N',
+                    help='number of epochs to train (default: 30)')
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='enables CUDA training')
 parser.add_argument('--seed', type=int, default=1, metavar='S',
                     help='random seed (default: 1)')
 parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                     help='how many batches to wait before logging training status')
+parser.add_argument('--anomaly', type=int, default=9, metavar='K',
+                    help='Anomaly class')
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
 
@@ -38,17 +42,37 @@ def to_img(x):
     return x
 
 
-num_epochs = 15
-batch_size = 128
+
+
 learning_rate = 1e-3
 
-img_transform = transforms.Compose([
-    transforms.ToTensor()
+
+#dataset = MNIST('../data', transform=img_transform)
+#train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+to_tenser_transforms = transforms.Compose([
+transforms.ToTensor() # Tensorに変換
 ])
+train_test_dataset = custom_dataset.CustomDataset("/home/is0383kk/workspace/study/datasets/MNIST",to_tenser_transforms,train=True)
 
-dataset = MNIST('../data', transform=img_transform)
-train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+n_samples = len(train_test_dataset) # n_samples is 60000
+train_size = int(len(train_test_dataset) * 0.88) # train_size is 48000
+test_size = n_samples - train_size # val_size is 48000
+train_dataset, test_dataset = torch.utils.data.random_split(train_test_dataset, [train_size, test_size])
 
+
+train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
+                                            batch_size=args.batch_size,
+                                            shuffle=True)
+test_loader = torch.utils.data.DataLoader(dataset=test_dataset,
+                                            batch_size=args.batch_size,
+                                            shuffle=True)
+anomaly_dataset = custom_dataset.CustomDataset("/home/is0383kk/workspace/study/datasets/MNIST",to_tenser_transforms,train=False)
+anomaly_loader = torch.utils.data.DataLoader(dataset=anomaly_dataset,
+                                            batch_size=args.batch_size,
+                                            shuffle=True)
+print(f"Train data->{len(train_dataset)}")
+print(f"Test data->{len(test_dataset)}")
+print(f"Anomaly data->{len(anomaly_dataset)}")
 
 class autoencoder(nn.Module):
     def __init__(self):
@@ -77,7 +101,7 @@ class autoencoder(nn.Module):
 
 
 model = autoencoder().to(device)
-#criterion = nn.MSELoss()
+criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
 def train(epoch):
@@ -89,24 +113,76 @@ def train(epoch):
         data = data.to(device)
         optimizer.zero_grad()
         recon = model(data)
-        #loss = criterion(recon, data)
-        loss = F.binary_cross_entropy(recon_x, x.view(-1, 784), reduction='sum')
+        loss = criterion(recon, data)
+        #print(f"loss => {loss}")
+        #loss = F.binary_cross_entropy(recon.view(-1, 784), data.view(-1, 784), reduction='sum')
         loss.backward()
         train_loss += loss.item()
         optimizer.step()
         if batch_idx % args.log_interval == 0:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader),
                 loss.item() / len(data)))
             with torch.no_grad():
                 pic = to_img(recon.cpu().data)
                 save_image(pic, './dc_img/image_{}.png'.format(epoch))
+    return loss.cpu()
+
+def test(epoch):
+    model.eval()
+    test_loss = 0
+    with torch.no_grad():
+        for i, (data, _) in enumerate(test_loader):
+            data = data.to(device)
+            optimizer.zero_grad()
+            recon = model(data)
+            loss = criterion(recon, data)
+            print(f"Test loss => {loss}")
+            #loss = F.binary_cross_entropy(recon.view(-1, 784), data.view(-1, 784), reduction='sum')
+            test_loss += loss.mean()
+            test_loss.item()
+            if i % args.log_interval == 0:
+                n = min(data.size(0), 7)
+                comparison = torch.cat([data[:n],
+                                    recon.view(args.batch_size, 1, 28, 28)[:n]])
+                save_image(comparison.cpu(),
+                        'recon/ae/recon_' + str(epoch) + '.png', nrow=n)
+
+    test_loss /= len(test_loader.dataset)
+    print('====> Test set loss: {}'.format(test_loss))
+    return test_loss.cpu()
+
+def anomaly(epoch):
+    model.eval()
+    test_loss = 0
+    with torch.no_grad():
+        for i, (data, _) in enumerate(anomaly_loader):
+            data = data.to(device)
+            recon = model(data)
+            loss = criterion(recon, data)
+            print(f"Anomaly loss => {loss}")
+            #loss = F.binary_cross_entropy(recon.view(-1, 784), data.view(-1, 784), reduction='sum')
+            test_loss += loss.mean()
+            test_loss.item()
+            if i % args.log_interval == 0:
+                n = min(data.size(0), 7)
+                comparison = torch.cat([data[:n],
+                                    recon.view(args.batch_size, 1, 28, 28)[:n]])
+                save_image(comparison.cpu(),
+                        'recon/ae/anomaly_' + str(epoch) + '.png', nrow=n)
+        
+
+    test_loss /= len(test_loader.dataset)
+    print('====> Anomaly set loss: {}'.format(test_loss))
+    return test_loss.cpu().numpy()
 
 if __name__ == "__main__":
     for epoch in range(1, args.epochs + 1):
-        train(epoch)
-        torch.save(model.state_dict(), './conv_autoencoder.pth')
+        tr_loss = train(epoch)
+        te_loss = test(epoch)
+        an_loss = anomaly(epoch)
+        torch.save(model.state_dict(), './pth/cnn_ae'+str(args.anomaly)+'.pth')
         #test(epoch)
         
         

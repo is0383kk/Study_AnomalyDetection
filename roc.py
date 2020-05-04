@@ -91,6 +91,34 @@ def prior(K, alpha):
     var = ((1 - 2.0 / K) * a.reciprocal()).t() + (1.0 / K ** 2) * a.reciprocal().sum(1)
     return mean.t(), var.t() # これを事前分布に定義
 
+class autoencoder(nn.Module):
+    def __init__(self):
+        super(autoencoder, self).__init__()
+        self.encoder = nn.Sequential(
+            nn.Conv2d(1, 16, 3, stride=3, padding=1),  # b, 16, 10, 10
+            nn.ReLU(True),
+            nn.MaxPool2d(2, stride=2),  # b, 16, 5, 5
+            nn.Conv2d(16, 8, 3, stride=2, padding=1),  # b, 8, 3, 3
+            nn.ReLU(True),
+            nn.MaxPool2d(2, stride=1)  # b, 8, 2, 2
+        )
+        self.decoder = nn.Sequential(
+            nn.ConvTranspose2d(8, 16, 3, stride=2),  # b, 16, 5, 5
+            nn.ReLU(True),
+            nn.ConvTranspose2d(16, 8, 5, stride=3, padding=1),  # b, 8, 15, 15
+            nn.ReLU(True),
+            nn.ConvTranspose2d(8, 1, 2, stride=2, padding=1),  # b, 1, 28, 28
+            nn.Tanh()
+        )
+
+    def forward(self, x):
+        x = self.encoder(x)
+        x = self.decoder(x)
+        return x
+
+
+
+
 class VAE_DIR(nn.Module):
     def __init__(self):
         super(VAE_DIR, self).__init__()
@@ -314,12 +342,40 @@ model_cnn_beta = VAE_CNN().to(device)
 model_cnn_beta.load_state_dict(torch.load('./pth/cnn_vae'+str(args.anomaly)+'_b.pth'))
 model_cnn_beta.eval()
 
-print(model_cnn)
+model_ae = autoencoder().to(device)
+model_ae.load_state_dict(torch.load('./pth/cnn_ae'+str(args.anomaly)+'.pth'))
+criterion = nn.MSELoss()
+model_ae.eval()
 
+#print(model_cnn)
+
+y_score_ae = []
 y_score_cnn = []
 y_score_dir = []
 y_score_cnn_beta = []
 y_score_dir_beta = []
+
+#AE
+for i, (data, _) in enumerate(test_loader):
+    with torch.no_grad():
+        data = data.to(device)
+        recon = model_ae(data)
+        loss = criterion(recon, data)
+        #loss = F.binary_cross_entropy(recon.view(-1, 784), data.view(-1, 784), reduction='sum')
+        loss = loss.cpu().detach().numpy()
+        #loss = np.round(loss, 1)
+        y_score_ae.append(loss)
+
+for i, (data, _) in enumerate(anomaly_loader):
+    with torch.no_grad():
+        data = data.to(device)
+        recon = model_ae(data)
+        loss = criterion(recon, data)
+        #loss = F.binary_cross_entropy(recon.view(-1, 784), data.view(-1, 784), reduction='sum')
+        loss = loss.cpu().detach().numpy()
+        #loss = np.round(loss, 1)
+        y_score_ae.append(loss)
+
 # CNN
 for i, (data, _) in enumerate(test_loader):
     with torch.no_grad():
@@ -402,24 +458,29 @@ print(f"y_score_cnn => {len(y_score_cnn)}")
 print(f"y_score_dir => {len(y_score_dir)}")
 print(f"y_true => {len(y_true)}")
 
+fpr_ae, tpr_ae, thresholds_ae = metrics.roc_curve(y_true, y_score_ae)
 fpr_cnn, tpr_cnn, thresholds_cnn = metrics.roc_curve(y_true, y_score_cnn)
 fpr_dir, tpr_dir, thresholds_dir = metrics.roc_curve(y_true, y_score_dir)
 fpr_cnn_beta, tpr_cnn_beta, thresholds_cnn_beta = metrics.roc_curve(y_true, y_score_cnn_beta)
 fpr_dir_beta, tpr_dir_beta, thresholds_dir_beta = metrics.roc_curve(y_true, y_score_dir_beta)
 #print(f"thresholds => {thresholds}")
+auc_ae = metrics.auc(fpr_ae, tpr_ae)
 auc_cnn = metrics.auc(fpr_cnn, tpr_cnn)
 auc_dir = metrics.auc(fpr_dir, tpr_dir)
 auc_cnn_beta = metrics.auc(fpr_cnn_beta, tpr_cnn_beta)
 auc_dir_beta = metrics.auc(fpr_dir_beta, tpr_dir_beta)
+print(f"AUC_AE => {auc_ae}")
 print(f"AUC_CNN => {auc_cnn}")
 print(f"AUC_Dir => {auc_dir}")
 print(f"AUC_CNN_B => {auc_cnn_beta}")
 print(f"AUC_Dir_B => {auc_dir_beta}")
-l1, l2, l3, l4 = "Baseline", "Proposed", "Baseline(b=10)", "Proposed(b=10)"
-plt.plot(fpr_cnn, tpr_cnn, label=l1)
-plt.plot(fpr_dir, tpr_dir, label=l2)
-plt.plot(fpr_cnn_beta, tpr_cnn_beta, label=l3)
-plt.plot(fpr_dir_beta, tpr_dir_beta, label=l4)
+l1, l2, l3, l4, l5 = "Baseline", "Proposed", "Baseline(b=10)", "Proposed(b=10)", "AutoEncoder"
+c1, c2, c3, c4, c5 = "r", "g", "b", "c", "m"
+plt.plot(fpr_cnn, tpr_cnn, color=c1 ,label=l1)
+plt.plot(fpr_dir, tpr_dir, color=c2 ,label=l2)
+plt.plot(fpr_cnn_beta, tpr_cnn_beta, color=c3, label=l3)
+plt.plot(fpr_dir_beta, tpr_dir_beta, color=c4, label=l4)
+plt.plot(fpr_ae, tpr_ae, color=c5, label=l5)
 plt.legend(loc='lower right')
 plt.xlabel('FPR: False positive rate',fontsize=13)
 plt.ylabel('TPR: True positive rate',fontsize=13)
