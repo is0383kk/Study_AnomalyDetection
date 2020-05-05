@@ -124,9 +124,6 @@ def train(epoch):
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader),
                 loss.item() / len(data)))
-            with torch.no_grad():
-                pic = to_img(recon.cpu().data)
-                save_image(pic, './dc_img/image_{}.png'.format(epoch))
     return loss.cpu()
 
 def test(epoch):
