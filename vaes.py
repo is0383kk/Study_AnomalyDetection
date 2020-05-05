@@ -493,7 +493,7 @@ if __name__ == "__main__":
     
     
     ax1.set_xlabel('Epoch', fontsize=13)  
-    ax1.set_ylabel('ELBO', fontsize=13)  
+    ax1.set_ylabel('Loss', fontsize=13)  
     ax1.set_xticks(plt_epoch, minor=False)
     ax1.set_ylim(80, 270)
 
