@@ -15,7 +15,7 @@ def init_data_loader(dataset, data_path, batch_size, train=True, training_digits
 
 	elif dataset == "cifar10":
 		if training_digits is not None:
-			return CIFAR10(data_path, batch_size, train=train, condition_on=[training_digits])
+			return CIFAR10(data_path, batch_size, train=train, condition_on=[training_digits], holdout=True
 		else:
 			return CIFAR10(data_path, batch_size, train=train)
 
@@ -36,7 +36,7 @@ num_channels=3
 data_loader, img_size, num_channels = init_data_loader(
                                                     dataset="cifar10", 
                                                     data_path="/home/is0383kk/workspace/study/data", 
-                                                    batch_size=10, 
+                                                    batch_size=3, 
                                                     training_digits=9
                                                     )
 
