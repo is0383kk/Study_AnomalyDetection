@@ -16,8 +16,8 @@ from module.data import CIFAR10
 parser = argparse.ArgumentParser(description='VAE MNIST Example')
 parser.add_argument('--batch-size', type=int, default=128, metavar='N',
                     help='input batch size for training (default: 128)')
-parser.add_argument('--epochs', type=int, default=50, metavar='N',
-                    help='number of epochs to train (default: 15)')
+parser.add_argument('--epochs', type=int, default=30, metavar='N',
+                    help='number of epochs to train (default: 30)')
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='enables CUDA training')
 parser.add_argument('--seed', type=int, default=1, metavar='S',
@@ -48,16 +48,16 @@ class UnFlatten(nn.Module):
         return input.view(input.size(0), size, 1, 1)
 
 
-def init_data_loader(dataset, data_path, batch_size, train=True, training_digits=None):
+def init_data_loader(dataset, data_path, batch_size, train, digits=None):
 	if dataset == "mnist":
-		if training_digits is not None:
-			return MNIST(data_path, batch_size, train=train, condition_on=[training_digits])
+		if digits is not None:
+			return MNIST(data_path, batch_size, train=train, condition_on=[digits])
 		else:
 			return MNIST(data_path, batch_size, train=train)
 
 	elif dataset == "cifar10":
-		if training_digits is not None:
-			return CIFAR10(data_path, batch_size, train=train, condition_on=[training_digits], holdout=False)
+		if digits is not None:
+			return CIFAR10(data_path, batch_size, train=train, condition_on=[digits])
 		else:
 			return CIFAR10(data_path, batch_size, train=train)
 
@@ -68,20 +68,19 @@ if data_name == "cifer10":
 else:
     img_size=28
     nc=1
-
+print(args.anomaly)
 train_loader, anomaly_loader, img_size, nc = init_data_loader(
                                                     dataset=data_name, 
                                                     data_path="/home/is0383kk/workspace/study/data", 
                                                     batch_size=args.batch_size, 
                                                     train=True,
-                                                    training_digits=args.anomaly
+                                                    digits=args.anomaly
                                                     )
 test_loader, _, img_size, nc = init_data_loader(
                                                     dataset=data_name, 
                                                     data_path="/home/is0383kk/workspace/study/data", 
                                                     batch_size=args.batch_size,
                                                     train=False,
-                                                    training_digits=args.anomaly
                                                     )
 
 
