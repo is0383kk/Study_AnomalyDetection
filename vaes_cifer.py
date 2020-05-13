@@ -48,7 +48,7 @@ class UnFlatten(nn.Module):
         return input.view(input.size(0), size, 1, 1)
 
 
-def init_data_loader(dataset, data_path, batch_size, train, digits=None):
+def init_data_loader(dataset, data_path, batch_size, train=True, digits=None):
 	if dataset == "mnist":
 		if digits is not None:
 			return MNIST(data_path, batch_size, train=train, condition_on=[digits])
@@ -61,8 +61,8 @@ def init_data_loader(dataset, data_path, batch_size, train, digits=None):
 		else:
 			return CIFAR10(data_path, batch_size, train=train)
 
-data_name = "cifer10"
-if data_name == "cifer10":
+data_name = "cifar10"
+if data_name == "cifar10":
     img_size=32
     nc=3
 else:
@@ -73,7 +73,6 @@ train_loader, anomaly_loader, img_size, nc = init_data_loader(
                                                     dataset=data_name, 
                                                     data_path="/home/is0383kk/workspace/study/data", 
                                                     batch_size=args.batch_size, 
-                                                    train=True,
                                                     digits=args.anomaly
                                                     )
 test_loader, _, img_size, nc = init_data_loader(
@@ -81,6 +80,7 @@ test_loader, _, img_size, nc = init_data_loader(
                                                     data_path="/home/is0383kk/workspace/study/data", 
                                                     batch_size=args.batch_size,
                                                     train=False,
+                                                    digits=args.anomaly
                                                     )
 
 

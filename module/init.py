@@ -15,7 +15,7 @@ def init_data_loader(dataset, data_path, batch_size, train=True, training_digits
 
 	elif dataset == "cifar10":
 		if training_digits is not None:
-			return CIFAR10(data_path, batch_size, train=train, condition_on=[training_digits], holdout=True
+			return CIFAR10(data_path, batch_size, train=train, condition_on=[training_digits], holdout=True)
 		else:
 			return CIFAR10(data_path, batch_size, train=train)
 
