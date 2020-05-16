@@ -8,6 +8,8 @@ from torchvision.utils import save_image
 from torchvision.datasets import MNIST
 import os
 import argparse
+from module.data import MNIST
+from module.data import CIFAR10
 
 from module import custom_dataset
 
@@ -45,8 +47,41 @@ def to_img(x):
 
 
 learning_rate = 1e-3
+def init_data_loader(dataset, data_path, batch_size, train=True, digits=None):
+	if dataset == "mnist":
+		if digits is not None:
+			return MNIST(data_path, batch_size, shuffle=False, train=train, condition_on=[digits])
+		else:
+			return MNIST(data_path, batch_size, shuffle=False, train=train)
 
+	elif dataset == "cifar10":
+		if digits is not None:
+			return CIFAR10(data_path, batch_size, shuffle=False, train=train, condition_on=[digits])
+		else:
+			return CIFAR10(data_path, batch_size, shuffle=False, train=train)
 
+data_name = "cifar10"
+if data_name == "cifar10":
+    img_size=32
+    nc=3
+else:
+    img_size=28
+    nc=1
+print(args.anomaly)
+train_loader, anomaly_loader, img_size, nc = init_data_loader(
+                                                    dataset=data_name, 
+                                                    data_path="/home/is0383kk/workspace/study/data", 
+                                                    batch_size=args.batch_size, 
+                                                    digits=args.anomaly
+                                                    )
+test_loader, _, img_size, nc = init_data_loader(
+                                                    dataset=data_name, 
+                                                    data_path="/home/is0383kk/workspace/study/data", 
+                                                    batch_size=args.batch_size,
+                                                    train=False,
+                                                    digits=args.anomaly
+                                                    )
+"""
 #dataset = MNIST('../data', transform=img_transform)
 #train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 to_tenser_transforms = transforms.Compose([
@@ -70,27 +105,28 @@ anomaly_dataset = custom_dataset.CustomDataset("/home/is0383kk/workspace/study/d
 anomaly_loader = torch.utils.data.DataLoader(dataset=anomaly_dataset,
                                             batch_size=args.batch_size,
                                             shuffle=True)
+
 print(f"Train data->{len(train_dataset)}")
 print(f"Test data->{len(test_dataset)}")
 print(f"Anomaly data->{len(anomaly_dataset)}")
-
+"""
 class autoencoder(nn.Module):
     def __init__(self):
         super(autoencoder, self).__init__()
         self.encoder = nn.Sequential(
-            nn.Conv2d(1, 16, 3, stride=3, padding=1),  # b, 16, 10, 10
+            nn.Conv2d(3, 16, 4, stride=2, padding=1),  # b, 16, 10, 10
             nn.ReLU(True),
             nn.MaxPool2d(2, stride=2),  # b, 16, 5, 5
-            nn.Conv2d(16, 8, 3, stride=2, padding=1),  # b, 8, 3, 3
+            nn.Conv2d(16, 8, 4, stride=2, padding=1),  # b, 8, 3, 3
             nn.ReLU(True),
             nn.MaxPool2d(2, stride=1)  # b, 8, 2, 2
         )
         self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(8, 16, 3, stride=2),  # b, 16, 5, 5
+            nn.ConvTranspose2d(8, 16, 4, stride=2),  # b, 16, 5, 5
             nn.ReLU(True),
-            nn.ConvTranspose2d(16, 8, 5, stride=3, padding=1),  # b, 8, 15, 15
+            nn.ConvTranspose2d(16, 8, 4, stride=2, padding=1),  # b, 8, 15, 15
             nn.ReLU(True),
-            nn.ConvTranspose2d(8, 1, 2, stride=2, padding=1),  # b, 1, 28, 28
+            nn.ConvTranspose2d(8, 3, 4, stride=2, padding=1),  # b, 1, 28, 28
             nn.Tanh()
         )
 
@@ -113,6 +149,8 @@ def train(epoch):
         data = data.to(device)
         optimizer.zero_grad()
         recon = model(data)
+        #print("recon",recon.size())
+        #print("data", data.size())
         loss = criterion(recon, data)
         #print(f"loss => {loss}")
         #loss = F.binary_cross_entropy(recon.view(-1, 784), data.view(-1, 784), reduction='sum')
@@ -142,7 +180,7 @@ def test(epoch):
             if i % args.log_interval == 0:
                 n = min(data.size(0), 7)
                 comparison = torch.cat([data[:n],
-                                    recon.view(args.batch_size, 1, 28, 28)[:n]])
+                                    recon[:n]])
                 save_image(comparison.cpu(),
                         'recon/ae/recon_' + str(epoch) + '.png', nrow=n)
 
@@ -158,14 +196,15 @@ def anomaly(epoch):
             data = data.to(device)
             recon = model(data)
             loss = criterion(recon, data)
-            print(f"Anomaly loss => {loss}")
+            #print(f"Anomaly loss => {loss}")
+            print("anomaly label",_)
             #loss = F.binary_cross_entropy(recon.view(-1, 784), data.view(-1, 784), reduction='sum')
             test_loss += loss.mean()
             test_loss.item()
             if i % args.log_interval == 0:
                 n = min(data.size(0), 7)
                 comparison = torch.cat([data[:n],
-                                    recon.view(args.batch_size, 1, 28, 28)[:n]])
+                                    recon[:n]])
                 save_image(comparison.cpu(),
                         'recon/ae/anomaly_' + str(epoch) + '.png', nrow=n)
         

@@ -16,8 +16,8 @@ from module.data import CIFAR10
 parser = argparse.ArgumentParser(description='VAE MNIST Example')
 parser.add_argument('--batch-size', type=int, default=128, metavar='N',
                     help='input batch size for training (default: 128)')
-parser.add_argument('--epochs', type=int, default=30, metavar='N',
-                    help='number of epochs to train (default: 30)')
+parser.add_argument('--epochs', type=int, default=15, metavar='N',
+                    help='number of epochs to train (default: 15)')
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='enables CUDA training')
 parser.add_argument('--seed', type=int, default=1, metavar='S',
@@ -51,15 +51,15 @@ class UnFlatten(nn.Module):
 def init_data_loader(dataset, data_path, batch_size, train=True, digits=None):
 	if dataset == "mnist":
 		if digits is not None:
-			return MNIST(data_path, batch_size, train=train, condition_on=[digits])
+			return MNIST(data_path, batch_size, shuffle=False, train=train, condition_on=[digits])
 		else:
-			return MNIST(data_path, batch_size, train=train)
+			return MNIST(data_path, batch_size, shuffle=False, train=train)
 
 	elif dataset == "cifar10":
 		if digits is not None:
-			return CIFAR10(data_path, batch_size, train=train, condition_on=[digits])
+			return CIFAR10(data_path, batch_size, shuffle=False, train=train, condition_on=[digits])
 		else:
-			return CIFAR10(data_path, batch_size, train=train)
+			return CIFAR10(data_path, batch_size, shuffle=False, train=train)
 
 data_name = "cifar10"
 if data_name == "cifar10":
@@ -347,6 +347,7 @@ def train_cnn(epoch, beta):
     BCE = 0
     for batch_idx, (data, _) in enumerate(train_loader):
         data = data.to(device)
+        print("label=>", _)
         optimizer_cnn.zero_grad()
         recon_batch, mu, logvar = model_cnn(data)
         #print(f"recon_batch->{recon_batch.size()}")
@@ -396,6 +397,7 @@ def anomaly_cnn(epoch, beta):
     test_loss = 0
     with torch.no_grad():
         for i, (data, _) in enumerate(anomaly_loader):
+            print("Anomaly_label=>", _)
             data = data.to(device)
             recon_batch, mu, logvar = model_cnn(data)
             loss, BCE = model_cnn.loss_function_cnn(recon_batch, data, mu, logvar, beta)

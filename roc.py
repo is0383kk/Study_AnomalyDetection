@@ -44,6 +44,7 @@ test_loader = torch.utils.data.DataLoader(
     datasets.MNIST('../data', train=False, download=True, transform=transforms.ToTensor()),
     batch_size=args.batch_size, shuffle=False, **kwargs)
 """
+"""
 # 独自に定義したデータローダの設定
 to_tenser_transforms = transforms.Compose([
 transforms.ToTensor() # Tensorに変換
@@ -74,7 +75,7 @@ anomaly_loader = torch.utils.data.DataLoader(dataset=anomaly_dataset,
 print(f"Train data->{len(train_dataset)}")
 print(f"Test data->{len(test_dataset)}")
 print(f"Anomaly data->{len(anomaly_dataset)}")
-
+"""
 ngf = 64
 ndf = 64
 nc = 1 # 画像のチャンネル数
