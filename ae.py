@@ -11,12 +11,11 @@ import argparse
 from module.data import MNIST
 from module.data import CIFAR10
 
-from module import custom_dataset
 
 parser = argparse.ArgumentParser(description='VAE MNIST Example')
 parser.add_argument('--batch-size', type=int, default=128, metavar='N',
                     help='input batch size for training (default: 128)')
-parser.add_argument('--epochs', type=int, default=30, metavar='N',
+parser.add_argument('--epochs', type=int, default=20, metavar='N',
                     help='number of epochs to train (default: 30)')
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='enables CUDA training')
@@ -69,13 +68,13 @@ else:
     nc=1
 print(args.anomaly)
 train_loader, anomaly_loader, img_size, nc = init_data_loader(
-                                                    dataset=data_name, 
+                                                    dataset="cifar10", 
                                                     data_path="/home/is0383kk/workspace/study/data", 
-                                                    batch_size=args.batch_size, 
+                                                    batch_size=128, 
                                                     digits=args.anomaly
                                                     )
 test_loader, _, img_size, nc = init_data_loader(
-                                                    dataset=data_name, 
+                                                    dataset="cifar10", 
                                                     data_path="/home/is0383kk/workspace/study/data", 
                                                     batch_size=args.batch_size,
                                                     train=False,

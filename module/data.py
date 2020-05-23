@@ -61,7 +61,7 @@ def CIFAR10(data_path, batch_size, shuffle=True, train=True, condition_on=None, 
 		#torchvision.transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 		])
 	dataset = torchvision.datasets.CIFAR10(data_path, train, download=False, transform=transform)
-	print("dataset=>",len(dataset))
+	print("ALLdataset=>",len(dataset))
 
 	if condition_on is not None:
 		print("digit == True")
@@ -70,11 +70,11 @@ def CIFAR10(data_path, batch_size, shuffle=True, train=True, condition_on=None, 
 		data_loader = torch.utils.data.DataLoader(dataset, sampler=sampler, batch_size=len(dataset), shuffle=False, num_workers=num_workers)
 		data_iter = iter(data_loader)
 		_, labels = data_iter.next()
-		print("label",labels)
+		#print("label",labels)
 		anomaly_label = np.in1d(labels.numpy().ravel(), condition_on)
 		train_label = np.logical_not(np.in1d(labels.numpy().ravel(), condition_on))
-		print(f"anomaly_label=>",anomaly_label)
-		print(f"train_label=>",train_label)
+		#print(f"anomaly_label=>",anomaly_label)
+		#print(f"train_label=>",train_label)
 		
 		train_ids = np.where(np.logical_not(np.in1d(labels.numpy().ravel(), condition_on)))[0]
 		anomaly_ids = np.where(np.in1d(labels.numpy().ravel(), condition_on))[0]
@@ -83,9 +83,13 @@ def CIFAR10(data_path, batch_size, shuffle=True, train=True, condition_on=None, 
 			# sample randomly without replacement from conditioned class
 			tr_sampler = SubsetRandomSampler(train_ids)
 			an_sampler = SubsetRandomSampler(anomaly_ids)
-			train_dataset = torch.utils.data.DataLoader(dataset, sampler=tr_sampler, batch_size=batch_size, shuffle=False, num_workers=num_workers)
-			anomaly_dataset = torch.utils.data.DataLoader(dataset, sampler=an_sampler, batch_size=batch_size, shuffle=False, num_workers=num_workers)
-			print("digit == True")
+			train_dataset = torch.utils.data.DataLoader(dataset, sampler=tr_sampler, batch_size=128, shuffle=False, num_workers=num_workers)
+			anomaly_dataset = torch.utils.data.DataLoader(dataset, sampler=an_sampler, batch_size=128, shuffle=False, num_workers=num_workers)
+			print("====================")
+			print("TrainData=>",len(train_dataset))
+			print("AnomalyData=>",len(anomaly_dataset))
+			print("====================")
+			
 			return train_dataset, anomaly_dataset, img_size_scaled, num_channels, 
 
 		else:

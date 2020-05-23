@@ -82,7 +82,7 @@ test_loader, _, img_size, nc = init_data_loader(
                                                     train=False,
                                                     digits=args.anomaly
                                                     )
-
+print("Train_loader", len(train_loader))
 
 def prior(K, alpha):
     """
@@ -545,11 +545,11 @@ if __name__ == "__main__":
     # ロス関数プロット
     ax1.plot(plt_epoch, tr_cnn_loss, linestyle = "dashed", color=c1, label=l1b)
     ax1.plot(plt_epoch, te_cnn_loss, linestyle = "dashed", color=c2, label=l2b)
-    ax1.plot(plt_epoch, an_cnn_loss, linestyle = "dashed", color=c3, label=l3b)
+    #ax1.plot(plt_epoch, an_cnn_loss, linestyle = "dashed", color=c3, label=l3b)
 
     ax1.plot(plt_epoch, tr_dir_loss, color=c1, label=l1p)
     ax1.plot(plt_epoch, te_dir_loss, color=c2, label=l2p)
-    ax1.plot(plt_epoch, an_dir_loss, color=c3, label=l3p)
+    #ax1.plot(plt_epoch, an_dir_loss, color=c3, label=l3p)
     
     ax1.legend(loc=1) 
     if args.beta != True:

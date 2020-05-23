@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from torch.utils.data.dataset import Subset
 
 parser = argparse.ArgumentParser(description='VAE MNIST Example')
-parser.add_argument('--batch-size', type=int, default=10, metavar='N',
+parser.add_argument('--batch-size', type=int, default=40, metavar='N',
                     help='input batch size for training (default: 10)')
 parser.add_argument('--epochs', type=int, default=10, metavar='N',
                     help='number of epochs to train (default: 10)')
@@ -69,11 +69,11 @@ train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
                                             shuffle=False)
 test_loader = torch.utils.data.DataLoader(dataset=test_dataset,
                                             batch_size=args.batch_size,
-                                            shuffle=False)
+                                            shuffle=True)
 anomaly_dataset = custom_dataset.CustomDataset("/home/is0383kk/workspace/study/datasets/MNIST",to_tenser_transforms,train=False)
 anomaly_loader = torch.utils.data.DataLoader(dataset=anomaly_dataset,
                                             batch_size=args.batch_size,
-                                            shuffle=False)
+                                            shuffle=True)
 #print(f"train_dataset[0]->{train_dataset[0]}")
 print(f"Train data->{len(train_dataset)}")
 print(f"Test data->{len(test_dataset)}")
@@ -227,20 +227,24 @@ def show(epoch):
                 recon_batch, mu, logvar, z = model(data)
                 recon_batch_b, mu_b, logvar_b, z_b = model_beta(data)
                 print(f"DIR=>\n{z}")
-                print(f"DIR_beta=>\n{z_b}")
+                print(f"DIR_beta=>{z_b}")
+                z_b = z_b.cpu()
+                z = z.cpu()
+                print(f"DIR_argmax=>\n{z.argmax(1).numpy()}")
+                print(f"DIR_beta_argmax=>\n{z_b.argmax(1).numpy()}")
                 #loss, BCE = model.loss_function(recon_batch, data, mu, logvar, args.category, 1.0)
                 #loss_b, BCE_b = model_beta.loss_function(recon_batch, data, mu, logvar, args.category, 10.0)
                 
-                n = min(data.size(0), 18)
+                n = min(data.size(0), 5)
                 comparison = torch.cat([data[:n],
                                         recon_batch.view(args.batch_size, 1, 28, 28)[:n]])
                 save_image(comparison.cpu(),
-                            'recon/cnn/anomaly_' + str(epoch) + '.png', nrow=n)
+                            'recon/dir/anomaly_' + str(epoch) + '.png', nrow=n)
             
-                n = min(data.size(0), 18)
+                n = min(data.size(0), 5)
                 comparison = torch.cat([data[:n],
                                         recon_batch_b.view(args.batch_size, 1, 28, 28)[:n]])
                 save_image(comparison.cpu(),
-                            'recon/cnn/anomaly_' + str(epoch) + '_b.png', nrow=n)
+                            'recon/dir/anomaly_' + str(epoch) + '_b.png', nrow=n)
 
 show(1)
