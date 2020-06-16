@@ -9,6 +9,9 @@ from torchvision.utils import save_image
 from module import custom_dataset
 import numpy as np
 import matplotlib.pyplot as plt
+from module.data import MNIST
+from module.data import CIFAR10
+
 
 parser = argparse.ArgumentParser(description='VAE MNIST Example')
 parser.add_argument('--batch-size', type=int, default=1, metavar='N',
@@ -33,52 +36,49 @@ torch.manual_seed(args.seed)
 torch.cuda.manual_seed(args.seed)  
 
 device = torch.device("cuda" if args.cuda else "cpu")
+class Flatten(nn.Module):
+    def forward(self, input):
+        return input.view(input.size(0), -1)
 
-"""
-kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
-train_loader = torch.utils.data.DataLoader(
-    datasets.MNIST('../data', train=True, download=True,
-                   transform=transforms.ToTensor()),
-    batch_size=args.batch_size, shuffle=True, **kwargs)
-test_loader = torch.utils.data.DataLoader(
-    datasets.MNIST('../data', train=False, download=True, transform=transforms.ToTensor()),
-    batch_size=args.batch_size, shuffle=False, **kwargs)
-"""
-
-# 独自に定義したデータローダの設定
-to_tenser_transforms = transforms.Compose([
-transforms.ToTensor() # Tensorに変換
-])
-train_test_dataset = custom_dataset.CustomDataset("/home/is0383kk/workspace/study/datasets/MNIST",to_tenser_transforms,train=True)
+class UnFlatten(nn.Module):
+    def forward(self, input, size=256):
+        return input.view(input.size(0), size, 1, 1)
 
 
-# shuffleしてから分割してくれる.
-n_samples = len(train_test_dataset) # n_samples is 60000
-train_size = int(len(train_test_dataset) * 0.88) # train_size is 48000
-test_size = n_samples - train_size # val_size is 48000
-train_dataset, test_dataset = torch.utils.data.random_split(train_test_dataset, [train_size, test_size])
+def init_data_loader(dataset, data_path, batch_size, train=True, digits=None):
+	if dataset == "mnist":
+		if digits is not None:
+			return MNIST(data_path, batch_size, shuffle=False, train=train, condition_on=[digits])
+		else:
+			return MNIST(data_path, batch_size, shuffle=False, train=train)
 
+	elif dataset == "cifar10":
+		if digits is not None:
+			return CIFAR10(data_path, batch_size, shuffle=False, train=train, condition_on=[digits])
+		else:
+			return CIFAR10(data_path, batch_size, shuffle=False, train=train)
 
-
-train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
-                                            batch_size=args.batch_size,
-                                            shuffle=True)
-test_loader = torch.utils.data.DataLoader(dataset=test_dataset,
-                                            batch_size=args.batch_size,
-                                            shuffle=True)
-anomaly_dataset = custom_dataset.CustomDataset("/home/is0383kk/workspace/study/datasets/MNIST",to_tenser_transforms,train=False)
-anomaly_loader = torch.utils.data.DataLoader(dataset=anomaly_dataset,
-                                            batch_size=args.batch_size,
-                                            shuffle=True)
-
-
-print(f"Train data->{len(train_dataset)}")
-print(f"Test data->{len(test_dataset)}")
-print(f"Anomaly data->{len(anomaly_dataset)}")
-
-ngf = 64
-ndf = 64
-nc = 1 # 画像のチャンネル数
+data_name = "cifar10"
+if data_name == "cifar10":
+    img_size=32
+    nc=3
+else:
+    img_size=28
+    nc=1
+print(args.anomaly)
+train_loader, anomaly_loader, img_size, nc = init_data_loader(
+                                                    dataset=data_name, 
+                                                    data_path="/home/is0383kk/workspace/study/data", 
+                                                    batch_size=1, 
+                                                    digits=args.anomaly
+                                                    )
+test_loader, _, img_size, nc = init_data_loader(
+                                                    dataset=data_name, 
+                                                    data_path="/home/is0383kk/workspace/study/data", 
+                                                    batch_size=1,
+                                                    train=False,
+                                                    digits=args.anomaly
+                                                    )
 
 def prior(K, alpha):
     """
@@ -92,85 +92,38 @@ def prior(K, alpha):
     var = ((1 - 2.0 / K) * a.reciprocal()).t() + (1.0 / K ** 2) * a.reciprocal().sum(1)
     return mean.t(), var.t() # これを事前分布に定義
 
-class autoencoder(nn.Module):
-    def __init__(self):
-        super(autoencoder, self).__init__()
-        self.encoder = nn.Sequential(
-            nn.Conv2d(1, 16, 3, stride=3, padding=1),  # b, 16, 10, 10
-            nn.ReLU(True),
-            nn.MaxPool2d(2, stride=2),  # b, 16, 5, 5
-            nn.Conv2d(16, 8, 3, stride=2, padding=1),  # b, 8, 3, 3
-            nn.ReLU(True),
-            nn.MaxPool2d(2, stride=1)  # b, 8, 2, 2
-        )
-        self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(8, 16, 3, stride=2),  # b, 16, 5, 5
-            nn.ReLU(True),
-            nn.ConvTranspose2d(16, 8, 5, stride=3, padding=1),  # b, 8, 15, 15
-            nn.ReLU(True),
-            nn.ConvTranspose2d(8, 1, 2, stride=2, padding=1),  # b, 1, 28, 28
-            nn.Tanh()
-        )
-
-    def forward(self, x):
-        x = self.encoder(x)
-        x = self.decoder(x)
-        return x
-
-
-
-
 class VAE_DIR(nn.Module):
     def __init__(self):
         super(VAE_DIR, self).__init__()
         self.encoder = nn.Sequential(
-            # input is (nc) x 28 x 28
-            nn.Conv2d(nc, ndf, 4, 2, 1, bias=False),
-            nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf) x 14 x 14
-            nn.Conv2d(ndf, ndf * 2, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(ndf * 2),
-            nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf*2) x 7 x 7
-            nn.Conv2d(ndf * 2, ndf * 4, 3, 2, 1, bias=False),
-            nn.BatchNorm2d(ndf * 4),
-            nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf*4) x 4 x 4
-            nn.Conv2d(ndf * 4, 1024, 4, 1, 0, bias=False),
-            # nn.BatchNorm2d(1024),
-            nn.LeakyReLU(0.2, inplace=True),
-            # nn.Sigmoid()
+            nn.Conv2d(nc, 28, kernel_size=3, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(28, 56, kernel_size=3, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(56, 122, kernel_size=3, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(122, 256, kernel_size=2, stride=2),
+            nn.ReLU(),
+            Flatten()
         )
 
         self.decoder = nn.Sequential(
-            # input is Z, going into a convolution
-            nn.ConvTranspose2d(     1024, ngf * 8, 4, 1, 0, bias=False),
-            nn.BatchNorm2d(ngf * 8),
-            nn.ReLU(True),
-            # state size. (ngf*8) x 4 x 4
-            nn.ConvTranspose2d(ngf * 8, ngf * 4, 3, 2, 1, bias=False),
-            nn.BatchNorm2d(ngf * 4),
-            nn.ReLU(True),
-            # state size. (ngf*4) x 8 x 8
-            nn.ConvTranspose2d(ngf * 4, ngf * 2, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(ngf * 2),
-            nn.ReLU(True),
-            # state size. (ngf*2) x 16 x 16
-            nn.ConvTranspose2d(ngf * 2,     nc, 4, 2, 1, bias=False),
-            # nn.BatchNorm2d(ngf),
-            # nn.ReLU(True),
-            # state size. (ngf) x 32 x 32
-            # nn.ConvTranspose2d(    ngf,      nc, 4, 2, 1, bias=False),
-            # nn.Tanh()
-            nn.Sigmoid()
-            # state size. (nc) x 64 x 64
+            UnFlatten(),
+            nn.ConvTranspose2d(256, 122, kernel_size=2, stride=2),
+            nn.ReLU(),
+            nn.ConvTranspose2d(122, 56, kernel_size=3, stride=2),
+            nn.ReLU(),
+            nn.ConvTranspose2d(56, 28, kernel_size=5, stride=2),
+            nn.ReLU(),
+            nn.ConvTranspose2d(28, nc, kernel_size=5, stride=2),
+            nn.Sigmoid(),
         )
-        self.fc1 = nn.Linear(1024, 512)
-        self.fc21 = nn.Linear(512, args.category)
-        self.fc22 = nn.Linear(512, args.category)
+        self.fc1 = nn.Linear(256, 128)
+        self.fc21 = nn.Linear(128, args.category)
+        self.fc22 = nn.Linear(128, args.category)
 
-        self.fc3 = nn.Linear(args.category, 512)
-        self.fc4 = nn.Linear(512, 1024)
+        self.fc3 = nn.Linear(args.category, 128)
+        self.fc4 = nn.Linear(128, 256)
 
         self.lrelu = nn.LeakyReLU()
         self.relu = nn.ReLU()
@@ -185,8 +138,9 @@ class VAE_DIR(nn.Module):
 
     def encode(self, x):
         conv = self.encoder(x);
+        
         # print("encode conv", conv.size())
-        h1 = self.fc1(conv.view(-1, 1024))
+        h1 = self.fc1(conv.view(-1, 256))
         # print("encode h1", h1.size())
         return self.fc21(h1), self.fc22(h1)
 
@@ -195,7 +149,7 @@ class VAE_DIR(nn.Module):
         h3 = self.relu(self.fc3(z))
         deconv_input = self.fc4(h3)
         # print("deconv_input", deconv_input.size())
-        deconv_input = deconv_input.view(-1,1024,1,1)
+        deconv_input = deconv_input.view(-1,256,1,1)
         # print("deconv_input", deconv_input.size())
         return self.decoder(deconv_input)
 
@@ -212,7 +166,7 @@ class VAE_DIR(nn.Module):
 
     # Reconstruction + KL divergence losses summed over all elements and batch
     def loss_function_dir(self, recon_x, x, mu, logvar, K, beta):
-        BCE = F.binary_cross_entropy(recon_x.view(-1, 784), x.view(-1, 784), reduction='sum')
+        BCE = F.binary_cross_entropy(recon_x, x, reduction='sum')
         # see Appendix B from VAE paper:
         # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
         # https://arxiv.org/abs/1312.6114
@@ -231,76 +185,57 @@ class VAE_DIR(nn.Module):
         KLD = 0.5 * ((var_division + diff_term + logvar_division).sum(1) - K)
         #print(KLD)
         
-        return (beta * BCE) + KLD, -BCE
+        return BCE + (beta * KLD), -BCE
 
 class VAE_CNN(nn.Module):
     def __init__(self):
         super(VAE_CNN, self).__init__()
         self.encoder = nn.Sequential(
-            # input is (nc) x 28 x 28
-            nn.Conv2d(nc, ndf, 4, 2, 1, bias=False),
-            nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf) x 14 x 14
-            nn.Conv2d(ndf, ndf * 2, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(ndf * 2),
-            nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf*2) x 7 x 7
-            nn.Conv2d(ndf * 2, ndf * 4, 3, 2, 1, bias=False),
-            nn.BatchNorm2d(ndf * 4),
-            nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf*4) x 4 x 4
-            nn.Conv2d(ndf * 4, 1024, 4, 1, 0, bias=False),
-            # nn.BatchNorm2d(1024),
-            nn.LeakyReLU(0.2, inplace=True),
-            # nn.Sigmoid()
+            nn.Conv2d(nc, 28, kernel_size=3, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(28, 56, kernel_size=3, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(56, 122, kernel_size=3, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(122, 256, kernel_size=2, stride=2),
+            nn.ReLU(),
+            Flatten()
         )
 
         self.decoder = nn.Sequential(
-            # input is Z, going into a convolution
-            nn.ConvTranspose2d(     1024, ngf * 8, 4, 1, 0, bias=False),
-            nn.BatchNorm2d(ngf * 8),
-            nn.ReLU(True),
-            # state size. (ngf*8) x 4 x 4
-            nn.ConvTranspose2d(ngf * 8, ngf * 4, 3, 2, 1, bias=False),
-            nn.BatchNorm2d(ngf * 4),
-            nn.ReLU(True),
-            # state size. (ngf*4) x 8 x 8
-            nn.ConvTranspose2d(ngf * 4, ngf * 2, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(ngf * 2),
-            nn.ReLU(True),
-            # state size. (ngf*2) x 16 x 16
-            nn.ConvTranspose2d(ngf * 2,     nc, 4, 2, 1, bias=False),
-            # nn.BatchNorm2d(ngf),
-            # nn.ReLU(True),
-            # state size. (ngf) x 32 x 32
-            # nn.ConvTranspose2d(    ngf,      nc, 4, 2, 1, bias=False),
-            # nn.Tanh()
-            nn.Sigmoid()
-            # state size. (nc) x 64 x 64
+            UnFlatten(),
+            nn.ConvTranspose2d(256, 122, kernel_size=2, stride=2),
+            nn.ReLU(),
+            nn.ConvTranspose2d(122, 56, kernel_size=3, stride=2),
+            nn.ReLU(),
+            nn.ConvTranspose2d(56, 28, kernel_size=5, stride=2),
+            nn.ReLU(),
+            nn.ConvTranspose2d(28, nc, kernel_size=5, stride=2),
+            nn.Sigmoid(),
         )
-        self.fc1 = nn.Linear(1024, 512)
-        self.fc21 = nn.Linear(512, 20)
-        self.fc22 = nn.Linear(512, 20)
+        self.fc1 = nn.Linear(256, 128)
+        self.fc21 = nn.Linear(128, 20)
+        self.fc22 = nn.Linear(128, 20)
 
-        self.fc3 = nn.Linear(20, 512)
-        self.fc4 = nn.Linear(512, 1024)
+        self.fc3 = nn.Linear(20, 128)
+        self.fc4 = nn.Linear(128, 256)
 
         self.lrelu = nn.LeakyReLU()
         self.relu = nn.ReLU()
 
     def encode(self, x):
         conv = self.encoder(x);
-        # print("encode conv", conv.size())
-        h1 = self.fc1(conv.view(-1, 1024))
-        # print("encode h1", h1.size())
+        #print("encode conv", conv.size())
+        h1 = self.fc1(conv.view(-1, 256))
+        #print("encode h1", h1.size())
         return self.fc21(h1), self.fc22(h1)
 
     def decode(self, z):
         h3 = self.relu(self.fc3(z))
         deconv_input = self.fc4(h3)
-        # print("deconv_input", deconv_input.size())
-        deconv_input = deconv_input.view(-1,1024,1,1)
-        # print("deconv_input", deconv_input.size())
+        #print("deconv_input", deconv_input.size())
+        deconv_input = deconv_input.view(-1,256,1,1)
+        #print("deconv_input", deconv_input.size())
         return self.decoder(deconv_input)
 
     def reparameterize(self, mu, logvar):
@@ -316,7 +251,7 @@ class VAE_CNN(nn.Module):
     
     # Reconstruction + KL divergence losses summed over all elements and batch
     def loss_function_cnn(self, recon_x, x, mu, logvar, beta):
-        BCE = F.binary_cross_entropy(recon_x.view(-1, 784), x.view(-1, 784), reduction='sum')
+        BCE = F.binary_cross_entropy(recon_x, x, reduction='sum')
 
         # see Appendix B from VAE paper:
         # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
@@ -324,27 +259,52 @@ class VAE_CNN(nn.Module):
         # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
         KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
-        return (beta * BCE) + KLD, -BCE
+        return BCE + (beta * KLD), -BCE
+class autoencoder(nn.Module):
+    def __init__(self):
+        super(autoencoder, self).__init__()
+        self.encoder = nn.Sequential(
+            nn.Conv2d(3, 16, 4, stride=2, padding=1),  # b, 16, 10, 10
+            nn.ReLU(True),
+            nn.MaxPool2d(2, stride=2),  # b, 16, 5, 5
+            nn.Conv2d(16, 8, 4, stride=2, padding=1),  # b, 8, 3, 3
+            nn.ReLU(True),
+            nn.MaxPool2d(2, stride=1)  # b, 8, 2, 2
+        )
+        self.decoder = nn.Sequential(
+            nn.ConvTranspose2d(8, 16, 4, stride=2),  # b, 16, 5, 5
+            nn.ReLU(True),
+            nn.ConvTranspose2d(16, 8, 4, stride=2, padding=1),  # b, 8, 15, 15
+            nn.ReLU(True),
+            nn.ConvTranspose2d(8, 3, 4, stride=2, padding=1),  # b, 1, 28, 28
+            nn.Tanh()
+        )
+
+    def forward(self, x):
+        x = self.encoder(x)
+        x = self.decoder(x)
+        return x
+
 
 
 model_dir = VAE_DIR().to(device)
-model_dir.load_state_dict(torch.load('./pth/mnist_pth/dir_vae'+str(args.anomaly)+'.pth'))
+model_dir.load_state_dict(torch.load('./pth/dir_vae'+str(args.anomaly)+'.pth'))
 model_dir.eval()
 
 model_cnn = VAE_CNN().to(device)
-model_cnn.load_state_dict(torch.load('./pth/mnist_pth/cnn_vae'+str(args.anomaly)+'.pth'))
+model_cnn.load_state_dict(torch.load('./pth/cnn_vae'+str(args.anomaly)+'.pth'))
 model_cnn.eval()
 
 model_dir_beta = VAE_DIR().to(device)
-model_dir_beta.load_state_dict(torch.load('./pth/mnist_pth/dir_vae'+str(args.anomaly)+'_b.pth'))
+model_dir_beta.load_state_dict(torch.load('./pth/dir_vae'+str(args.anomaly)+'_b.pth'))
 model_dir_beta.eval()
 
 model_cnn_beta = VAE_CNN().to(device)
-model_cnn_beta.load_state_dict(torch.load('./pth/mnist_pth/cnn_vae'+str(args.anomaly)+'_b.pth'))
+model_cnn_beta.load_state_dict(torch.load('./pth/cnn_vae'+str(args.anomaly)+'_b.pth'))
 model_cnn_beta.eval()
 
 model_ae = autoencoder().to(device)
-model_ae.load_state_dict(torch.load('./pth/mnist_pth/cnn_ae'+str(args.anomaly)+'.pth'))
+model_ae.load_state_dict(torch.load('./pth/cnn_ae'+str(args.anomaly)+'.pth'))
 criterion = nn.MSELoss()
 model_ae.eval()
 
@@ -355,7 +315,7 @@ y_score_cnn = []
 y_score_dir = []
 y_score_cnn_beta = []
 y_score_dir_beta = []
-
+"""
 #AE
 for i, (data, _) in enumerate(test_loader):
     with torch.no_grad():
@@ -376,7 +336,7 @@ for i, (data, _) in enumerate(anomaly_loader):
         loss = loss.cpu().detach().numpy()
         #loss = np.round(loss, 1)
         y_score_ae.append(loss)
-
+"""
 # CNN
 for i, (data, _) in enumerate(test_loader):
     with torch.no_grad():
@@ -451,36 +411,36 @@ from sklearn import metrics
 import matplotlib.pyplot as plt
 
 #y_true = np.array([0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1])
-test_label = np.zeros(len(test_dataset))
-anomaly_lable = np.ones(len(anomaly_dataset))
+test_label = np.zeros(9000)
+anomaly_lable = np.ones(5000)
 y_true = np.concatenate([test_label, anomaly_lable])
 
 print(f"y_score_cnn => {len(y_score_cnn)}")
 print(f"y_score_dir => {len(y_score_dir)}")
 print(f"y_true => {len(y_true)}")
 
-fpr_ae, tpr_ae, thresholds_ae = metrics.roc_curve(y_true, y_score_ae)
+#fpr_ae, tpr_ae, thresholds_ae = metrics.roc_curve(y_true, y_score_ae)
 fpr_cnn, tpr_cnn, thresholds_cnn = metrics.roc_curve(y_true, y_score_cnn)
 fpr_dir, tpr_dir, thresholds_dir = metrics.roc_curve(y_true, y_score_dir)
 fpr_cnn_beta, tpr_cnn_beta, thresholds_cnn_beta = metrics.roc_curve(y_true, y_score_cnn_beta)
 fpr_dir_beta, tpr_dir_beta, thresholds_dir_beta = metrics.roc_curve(y_true, y_score_dir_beta)
 #print(f"thresholds => {thresholds}")
-auc_ae = metrics.auc(fpr_ae, tpr_ae)
+#auc_ae = metrics.auc(fpr_ae, tpr_ae)
 auc_cnn = metrics.auc(fpr_cnn, tpr_cnn)
 auc_dir = metrics.auc(fpr_dir, tpr_dir)
 auc_cnn_beta = metrics.auc(fpr_cnn_beta, tpr_cnn_beta)
 auc_dir_beta = metrics.auc(fpr_dir_beta, tpr_dir_beta)
-print(f"AUC_AE => {auc_ae}")
+#print(f"AUC_AE => {auc_ae}")
 print(f"AUC_CNN => {auc_cnn}")
 print(f"AUC_Dir => {auc_dir}")
 print(f"AUC_CNN_B => {auc_cnn_beta}")
 print(f"AUC_Dir_B => {auc_dir_beta}")
 l1, l2, l3, l4, l5 = "Baseline", "Proposed", "Baseline(b=10)", "Proposed(b=10)", "AutoEncoder"
 c1, c2, c3, c4, c5 = "r", "g", "b", "c", "m"
-#plt.plot(fpr_cnn, tpr_cnn, color=c1 ,label=l1)
+plt.plot(fpr_cnn, tpr_cnn, color=c1 ,label=l1)
 plt.plot(fpr_dir, tpr_dir, color=c2 ,label=l2)
-#plt.plot(fpr_cnn_beta, tpr_cnn_beta, color=c3, label=l3)
-#plt.plot(fpr_dir_beta, tpr_dir_beta, color=c4, label=l4)
+plt.plot(fpr_cnn_beta, tpr_cnn_beta, color=c3, label=l3)
+plt.plot(fpr_dir_beta, tpr_dir_beta, color=c4, label=l4)
 #plt.plot(fpr_ae, tpr_ae, color=c5, label=l5)
 plt.legend(loc='lower right')
 plt.xlabel('FPR: False positive rate',fontsize=13)

@@ -33,8 +33,8 @@ root = "/home/is0383kk/workspace/study/datasets/MNIST"
 
 class CustomDataset(torch.utils.data.Dataset):
     def __init__(self,root,transform=None,train=True):
-        #train_classes = ["0","2","3","4","5","6","7","8","9"] #クラス名を定義
-        train_classes = ["6"] #クラス名を定義
+        train_classes = ["1","2","3","4","5","6","7","8","9"] #クラス名を定義
+        #train_classes = ["6"] #クラス名を定義
         test_classes = ["0"] #クラス名を定義
         """
         ただしディレクトリの仕様は以下の通り

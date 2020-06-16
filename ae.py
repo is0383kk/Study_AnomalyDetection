@@ -15,7 +15,7 @@ from module.data import CIFAR10
 parser = argparse.ArgumentParser(description='VAE MNIST Example')
 parser.add_argument('--batch-size', type=int, default=128, metavar='N',
                     help='input batch size for training (default: 128)')
-parser.add_argument('--epochs', type=int, default=20, metavar='N',
+parser.add_argument('--epochs', type=int, default=30, metavar='N',
                     help='number of epochs to train (default: 30)')
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='enables CUDA training')
@@ -113,20 +113,25 @@ class autoencoder(nn.Module):
     def __init__(self):
         super(autoencoder, self).__init__()
         self.encoder = nn.Sequential(
-            nn.Conv2d(3, 16, 4, stride=2, padding=1),  # b, 16, 10, 10
-            nn.ReLU(True),
+            nn.Conv2d(3, 16, 5, stride=2, padding=1),  # b, 16, 10, 10
+            #nn.Conv2d(3, 16, 4, stride=2, padding=1),
+			nn.ReLU(True),
             nn.MaxPool2d(2, stride=2),  # b, 16, 5, 5
-            nn.Conv2d(16, 8, 4, stride=2, padding=1),  # b, 8, 3, 3
-            nn.ReLU(True),
+            nn.Conv2d(16, 8, 5, stride=2, padding=1),  # b, 8, 3, 3
+            #nn.Conv2d(16, 8, 4, stride=2, padding=1)
+			nn.ReLU(True),
             nn.MaxPool2d(2, stride=1)  # b, 8, 2, 2
         )
         self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(8, 16, 4, stride=2),  # b, 16, 5, 5
-            nn.ReLU(True),
-            nn.ConvTranspose2d(16, 8, 4, stride=2, padding=1),  # b, 8, 15, 15
-            nn.ReLU(True),
-            nn.ConvTranspose2d(8, 3, 4, stride=2, padding=1),  # b, 1, 28, 28
-            nn.Tanh()
+            nn.ConvTranspose2d(8, 16, 5, stride=2),  # b, 16, 5, 5
+            #nn.ConvTranspose2d(8, 16, 4, stride=2)
+			nn.ReLU(True),
+            nn.ConvTranspose2d(16, 8, 5, stride=2, padding=1),  # b, 8, 15, 15
+            #nn.ConvTranspose2d(16, 8, 4, stride=2, padding=1)
+			nn.ReLU(True),
+            nn.ConvTranspose2d(8, 3, 6, stride=2, padding=1),  # b, 1, 28, 28
+            #nn.ConvTranspose2d(8, 3, 4, stride=2, padding=1)
+			nn.Tanh()
         )
 
     def forward(self, x):
@@ -148,8 +153,8 @@ def train(epoch):
         data = data.to(device)
         optimizer.zero_grad()
         recon = model(data)
-        #print("recon",recon.size())
-        #print("data", data.size())
+        print("recon",recon.size())
+        print("data", data.size())
         loss = criterion(recon, data)
         #print(f"loss => {loss}")
         #loss = F.binary_cross_entropy(recon.view(-1, 784), data.view(-1, 784), reduction='sum')
