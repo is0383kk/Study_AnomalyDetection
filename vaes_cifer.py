@@ -16,7 +16,7 @@ from module.data import CIFAR10
 parser = argparse.ArgumentParser(description='VAE MNIST Example')
 parser.add_argument('--batch-size', type=int, default=128, metavar='N',
                     help='input batch size for training (default: 128)')
-parser.add_argument('--epochs', type=int, default=15, metavar='N',
+parser.add_argument('--epochs', type=int, default=20, metavar='N',
                     help='number of epochs to train (default: 15)')
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='enables CUDA training')
@@ -101,24 +101,31 @@ class VAE_DIR(nn.Module):
         super(VAE_DIR, self).__init__()
         self.encoder = nn.Sequential(
             nn.Conv2d(nc, 64, kernel_size=4, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.2),
             nn.Conv2d(64, 128, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2),
             nn.Conv2d(128, 256, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2),
             nn.Conv2d(256, 1024, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(1024),
+            nn.LeakyReLU(0.2),
             Flatten()
         )
 
         self.decoder = nn.Sequential(
             UnFlatten(),
             nn.ConvTranspose2d(1024, 256, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2),
             nn.ConvTranspose2d(256, 128, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2),
             nn.ConvTranspose2d(128, 64, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.2),
             nn.ConvTranspose2d(64, nc, kernel_size=4, stride=2),
             nn.Sigmoid(),
         )
@@ -196,24 +203,31 @@ class VAE_CNN(nn.Module):
         super(VAE_CNN, self).__init__()
         self.encoder = nn.Sequential(
             nn.Conv2d(nc, 64, kernel_size=4, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.2),
             nn.Conv2d(64, 128, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2),
             nn.Conv2d(128, 256, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2),
             nn.Conv2d(256, 1024, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(1024),
+            nn.LeakyReLU(0.2),
             Flatten()
         )
 
         self.decoder = nn.Sequential(
             UnFlatten(),
             nn.ConvTranspose2d(1024, 256, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2),
             nn.ConvTranspose2d(256, 128, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2),
             nn.ConvTranspose2d(128, 64, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.2),
             nn.ConvTranspose2d(64, nc, kernel_size=4, stride=2),
             nn.Sigmoid(),
         )
@@ -347,7 +361,7 @@ def train_cnn(epoch, beta):
     BCE = 0
     for batch_idx, (data, _) in enumerate(train_loader):
         data = data.to(device)
-        print("label=>", _)
+        #print("label=>", _)
         optimizer_cnn.zero_grad()
         recon_batch, mu, logvar = model_cnn(data)
         #print(f"recon_batch->{recon_batch.size()}")
@@ -498,9 +512,9 @@ if __name__ == "__main__":
             ancl, ancbce = anomaly_cnn(epoch, 1.0)
         else:
             print("beta")
-            trcl, trcbce = train_cnn(epoch, 10.0)
-            tecl, tecbce = test_cnn(epoch, 10.0)
-            ancl, ancbce = anomaly_cnn(epoch, 10.0)
+            trcl, trcbce = train_cnn(epoch, 0.1)
+            tecl, tecbce = test_cnn(epoch, 0.1)
+            ancl, ancbce = anomaly_cnn(epoch, 0.1)
         tr_cnn_loss.append(trcl)
         te_cnn_loss.append(tecl)
         tr_cnn_bce.append(trcbce)
@@ -519,9 +533,9 @@ if __name__ == "__main__":
             tedl, tedbce = test_dir(epoch, 1.0)
             andl, andbce = anomaly_dir(epoch, 1.0)
         else:
-            trdl, trdbce = train_dir(epoch, 10.0)
-            tedl, tedbce = test_dir(epoch, 10.0)
-            andl, andbce = anomaly_dir(epoch, 10.0)
+            trdl, trdbce = train_dir(epoch, 0.1)
+            tedl, tedbce = test_dir(epoch, 0.1)
+            andl, andbce = anomaly_dir(epoch, 0.1)
         tr_dir_loss.append(trdl)
         te_dir_loss.append(tedl)
         tr_dir_bce.append(trdbce)

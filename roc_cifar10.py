@@ -97,24 +97,31 @@ class VAE_DIR(nn.Module):
         super(VAE_DIR, self).__init__()
         self.encoder = nn.Sequential(
             nn.Conv2d(nc, 64, kernel_size=4, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.2),
             nn.Conv2d(64, 128, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2),
             nn.Conv2d(128, 256, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2),
             nn.Conv2d(256, 1024, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(1024),
+            nn.LeakyReLU(0.2),
             Flatten()
         )
 
         self.decoder = nn.Sequential(
             UnFlatten(),
             nn.ConvTranspose2d(1024, 256, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2),
             nn.ConvTranspose2d(256, 128, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2),
             nn.ConvTranspose2d(128, 64, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.2),
             nn.ConvTranspose2d(64, nc, kernel_size=4, stride=2),
             nn.Sigmoid(),
         )
@@ -185,31 +192,38 @@ class VAE_DIR(nn.Module):
         KLD = 0.5 * ((var_division + diff_term + logvar_division).sum(1) - K)
         #print(KLD)
         
-        return BCE + (beta * KLD), -BCE
+        return BCE + (beta * KLD), BCE, KLD
 
 class VAE_CNN(nn.Module):
     def __init__(self):
         super(VAE_CNN, self).__init__()
         self.encoder = nn.Sequential(
             nn.Conv2d(nc, 64, kernel_size=4, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.2),
             nn.Conv2d(64, 128, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2),
             nn.Conv2d(128, 256, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2),
             nn.Conv2d(256, 1024, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(1024),
+            nn.LeakyReLU(0.2),
             Flatten()
         )
 
         self.decoder = nn.Sequential(
             UnFlatten(),
             nn.ConvTranspose2d(1024, 256, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2),
             nn.ConvTranspose2d(256, 128, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2),
             nn.ConvTranspose2d(128, 64, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.2),
             nn.ConvTranspose2d(64, nc, kernel_size=4, stride=2),
             nn.Sigmoid(),
         )
@@ -259,7 +273,7 @@ class VAE_CNN(nn.Module):
         # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
         KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
-        return BCE + (beta * KLD), -BCE
+        return BCE + (beta * KLD), BCE, KLD
 class autoencoder(nn.Module):
     def __init__(self):
         super(autoencoder, self).__init__()
@@ -339,19 +353,27 @@ for i, (data, _) in enumerate(anomaly_loader):
 """
 # CNN
 for i, (data, _) in enumerate(test_loader):
+    #print("i",i)
     with torch.no_grad():
         data = data.to(device)
         #print(f"{i} : data => {len(data)}")
         recon_batch, mu, logvar = model_cnn(data)
         recon_batch_b, mu_b, logvar_b = model_cnn_beta(data)
-        loss, BCE = model_cnn.loss_function_cnn(recon_batch, data, mu, logvar, 1.0)
-        loss_b, BCE_b = model_cnn_beta.loss_function_cnn(recon_batch_b, data, mu_b, logvar_b, 10.0)
-        loss = loss.cpu().detach().numpy()
-        loss = np.round(loss, 1)
-        loss_b = loss_b.cpu().detach().numpy()
-        loss_b = np.round(loss_b, 1)
-        y_score_cnn.append(loss)
-        y_score_cnn_beta.append(loss_b)
+        loss, BCE, KLD = model_cnn.loss_function_cnn(recon_batch, data, mu, logvar, 1.0)
+        loss_b, BCE_b, KLD_b = model_cnn_beta.loss_function_cnn(recon_batch_b, data, mu_b, logvar_b, 10.0)
+        #loss = loss.cpu().detach().numpy()
+        #loss_b = loss_b.cpu().detach().numpy()
+        BCE = BCE.cpu().detach().numpy()
+        BCE_b = BCE_b.cpu().detach().numpy()
+        #KLD = KLD.cpu().detach().numpy()
+        #KLD_b = KLD_b.cpu().detach().numpy()
+        #y_score_cnn.append(loss)
+        #y_score_cnn_beta.append(loss_b)
+        y_score_cnn.append(BCE)
+        y_score_cnn_beta.append(BCE_b)
+        #y_score_cnn.append(KLD)
+        #y_score_cnn_beta.append(KLD_b)
+        #print("loss",loss)
         #print(f"y_score => {y_score}")
         #print(f"cnn_loss => {cnn_loss}")
 
@@ -361,31 +383,44 @@ for i, (data, _) in enumerate(anomaly_loader):
         #print(f"{i} : data => {len(data)}")
         recon_batch, mu, logvar = model_cnn(data)
         recon_batch_b, mu_b, logvar_b = model_cnn_beta(data)
-        loss, BCE = model_cnn.loss_function_cnn(recon_batch, data, mu, logvar, 1.0)
-        loss_b, BCE_b = model_cnn_beta.loss_function_cnn(recon_batch_b, data, mu_b, logvar_b, 10.0)
-        loss = loss.cpu().detach().numpy()
-        loss_b = loss_b.cpu().detach().numpy()
-        loss = np.round(loss, 1)
-        loss_b = np.round(loss_b, 1)
-        y_score_cnn.append(loss)
-        y_score_cnn_beta.append(loss_b)
+        loss, BCE, KLD = model_cnn.loss_function_cnn(recon_batch, data, mu, logvar, 1.0)
+        loss_b, BCE_b, KLD_b = model_cnn_beta.loss_function_cnn(recon_batch_b, data, mu_b, logvar_b, 10.0)
+        #loss = loss.cpu().detach().numpy()
+        #loss_b = loss_b.cpu().detach().numpy()
+        BCE = BCE.cpu().detach().numpy()
+        BCE_b = BCE_b.cpu().detach().numpy()
+        #KLD = KLD.cpu().detach().numpy()
+        #KLD_b = KLD_b.cpu().detach().numpy()
+        #y_score_cnn.append(loss)
+        #y_score_cnn_beta.append(loss_b)
+        y_score_cnn.append(BCE)
+        y_score_cnn_beta.append(BCE_b)
+        #y_score_cnn.append(KLD)
+        #y_score_cnn_beta.append(KLD_b)
         #print(f"y_score => {y_score}")
 
 # Dir
 for i, (data, _) in enumerate(test_loader):
+    #print("i",i)
     with torch.no_grad():
         data = data.to(device)
         #print(f"{i} : data => {len(data)}")
         recon_batch, mu, logvar = model_dir(data)
         recon_batch_b, mu_b, logvar_b = model_dir_beta(data)
-        loss, BCE = model_dir.loss_function_dir(recon_batch, data, mu, logvar, args.category, 1.0)
-        loss_b, BCE_b = model_dir_beta.loss_function_dir(recon_batch_b, data, mu_b, logvar_b, args.category, 10.0)
-        loss = loss.cpu().detach().numpy()
-        loss_b = loss_b.cpu().detach().numpy()
-        loss = np.round(loss, 1)
-        loss_b = np.round(loss_b, 1)
-        y_score_dir.append(loss)
-        y_score_dir_beta.append(loss_b)
+        loss, BCE, KLD = model_dir.loss_function_dir(recon_batch, data, mu, logvar, args.category, 1.0)
+        loss_b, BCE_b, KLD_b = model_dir_beta.loss_function_dir(recon_batch_b, data, mu_b, logvar_b, args.category, 10.0)
+        #loss = loss.cpu().detach().numpy()
+        #loss_b = loss_b.cpu().detach().numpy()
+        #KLD = KLD.cpu().detach().numpy()
+        #KLD_b = KLD_b.cpu().detach().numpy()
+        BCE = BCE.cpu().detach().numpy()
+        BCE_b = BCE_b.cpu().detach().numpy()
+        #y_score_cnn.append(loss)
+        #y_score_cnn_beta.append(loss_b)
+        y_score_dir.append(BCE)
+        y_score_dir_beta.append(BCE_b)
+        #y_score_dir.append(KLD)
+        #y_score_dir_beta.append(KLD_b)
         #print(f"y_score => {y_score}")
         #print(f"cnn_loss => {cnn_loss}")
 
@@ -395,14 +430,20 @@ for i, (data, _) in enumerate(anomaly_loader):
         #print(f"{i} : data => {len(data)}")
         recon_batch, mu, logvar = model_dir(data)
         recon_batch_b, mu_b, logvar_b = model_dir_beta(data)
-        loss, BCE = model_dir.loss_function_dir(recon_batch, data, mu, logvar, args.category,1.0)
-        loss_b, BCE_b = model_dir_beta.loss_function_dir(recon_batch_b, data, mu_b, logvar_b, args.category,10.0)
-        loss = loss.cpu().detach().numpy()
-        loss = np.round(loss, 1)
-        loss_b = loss_b.cpu().detach().numpy()
-        loss_b = np.round(loss_b, 1)
-        y_score_dir.append(loss)
-        y_score_dir_beta.append(loss_b)
+        loss, BCE, KLD = model_dir.loss_function_dir(recon_batch, data, mu, logvar, args.category,1.0)
+        loss_b, BCE_b, KLD_b = model_dir_beta.loss_function_dir(recon_batch_b, data, mu_b, logvar_b, args.category,10.0)
+        #loss = loss.cpu().detach().numpy()
+        #loss_b = loss_b.cpu().detach().numpy()
+        BCE = BCE.cpu().detach().numpy()
+        BCE_b = BCE_b.cpu().detach().numpy()
+        #KLD = KLD.cpu().detach().numpy()
+        #KLD_b = KLD_b.cpu().detach().numpy()
+        #y_score_dir.append(KLD)
+        #y_score_dir_beta.append(KLD_b)
+        #y_score_dir.append(loss)
+        #y_score_dir_beta.append(loss_b)
+        y_score_dir.append(BCE)
+        y_score_dir_beta.append(BCE_b)
         #print(f"y_score => {y_score}")
 
 
