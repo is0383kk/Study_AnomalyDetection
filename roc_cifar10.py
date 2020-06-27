@@ -105,7 +105,10 @@ class VAE_DIR(nn.Module):
             nn.Conv2d(128, 256, kernel_size=3, stride=2),
             nn.BatchNorm2d(256),
             nn.LeakyReLU(0.2),
-            nn.Conv2d(256, 1024, kernel_size=3, stride=2),
+            nn.Conv2d(256, 512, kernel_size=3, stride=2),
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(512, 1024, kernel_size=1, stride=2),
             nn.BatchNorm2d(1024),
             nn.LeakyReLU(0.2),
             Flatten()
@@ -113,7 +116,10 @@ class VAE_DIR(nn.Module):
 
         self.decoder = nn.Sequential(
             UnFlatten(),
-            nn.ConvTranspose2d(1024, 256, kernel_size=3, stride=2),
+            nn.ConvTranspose2d(1024, 512, kernel_size=1, stride=2),
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(0.2),
+            nn.ConvTranspose2d(512, 256, kernel_size=3, stride=2),
             nn.BatchNorm2d(256),
             nn.LeakyReLU(0.2),
             nn.ConvTranspose2d(256, 128, kernel_size=3, stride=2),
@@ -207,7 +213,10 @@ class VAE_CNN(nn.Module):
             nn.Conv2d(128, 256, kernel_size=3, stride=2),
             nn.BatchNorm2d(256),
             nn.LeakyReLU(0.2),
-            nn.Conv2d(256, 1024, kernel_size=3, stride=2),
+            nn.Conv2d(256, 512, kernel_size=3, stride=2),
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(512, 1024, kernel_size=1, stride=2),
             nn.BatchNorm2d(1024),
             nn.LeakyReLU(0.2),
             Flatten()
@@ -215,7 +224,10 @@ class VAE_CNN(nn.Module):
 
         self.decoder = nn.Sequential(
             UnFlatten(),
-            nn.ConvTranspose2d(1024, 256, kernel_size=3, stride=2),
+            nn.ConvTranspose2d(1024, 512, kernel_size=1, stride=2),
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(0.2),
+            nn.ConvTranspose2d(512, 256, kernel_size=3, stride=2),
             nn.BatchNorm2d(256),
             nn.LeakyReLU(0.2),
             nn.ConvTranspose2d(256, 128, kernel_size=3, stride=2),

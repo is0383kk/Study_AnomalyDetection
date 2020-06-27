@@ -101,24 +101,37 @@ class VAE_DIR(nn.Module):
         super(VAE_DIR, self).__init__()
         self.encoder = nn.Sequential(
             nn.Conv2d(nc, 64, kernel_size=4, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.2),
             nn.Conv2d(64, 128, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2),
             nn.Conv2d(128, 256, kernel_size=3, stride=2),
-            nn.ReLU(),
-            nn.Conv2d(256, 1024, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(256, 512, kernel_size=3, stride=2),
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(512, 1024, kernel_size=1, stride=2),
+            nn.BatchNorm2d(1024),
+            nn.LeakyReLU(0.2),
             Flatten()
         )
 
         self.decoder = nn.Sequential(
             UnFlatten(),
-            nn.ConvTranspose2d(1024, 256, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.ConvTranspose2d(1024, 512, kernel_size=1, stride=2),
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(0.2),
+            nn.ConvTranspose2d(512, 256, kernel_size=3, stride=2),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2),
             nn.ConvTranspose2d(256, 128, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2),
             nn.ConvTranspose2d(128, 64, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.2),
             nn.ConvTranspose2d(64, nc, kernel_size=4, stride=2),
             nn.Sigmoid(),
         )
@@ -196,24 +209,37 @@ class VAE_CNN(nn.Module):
         super(VAE_CNN, self).__init__()
         self.encoder = nn.Sequential(
             nn.Conv2d(nc, 64, kernel_size=4, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.2),
             nn.Conv2d(64, 128, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2),
             nn.Conv2d(128, 256, kernel_size=3, stride=2),
-            nn.ReLU(),
-            nn.Conv2d(256, 1024, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(256, 512, kernel_size=3, stride=2),
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(512, 1024, kernel_size=1, stride=2),
+            nn.BatchNorm2d(1024),
+            nn.LeakyReLU(0.2),
             Flatten()
         )
 
         self.decoder = nn.Sequential(
             UnFlatten(),
-            nn.ConvTranspose2d(1024, 256, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.ConvTranspose2d(1024, 512, kernel_size=1, stride=2),
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(0.2),
+            nn.ConvTranspose2d(512, 256, kernel_size=3, stride=2),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2),
             nn.ConvTranspose2d(256, 128, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2),
             nn.ConvTranspose2d(128, 64, kernel_size=3, stride=2),
-            nn.ReLU(),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.2),
             nn.ConvTranspose2d(64, nc, kernel_size=4, stride=2),
             nn.Sigmoid(),
         )
@@ -302,7 +328,7 @@ model_ae.eval()
 
 def show(epoch):
     with torch.no_grad():
-        for i, (data, _) in enumerate(test_loader):
+        for i, (data, _) in enumerate(train_loader):
             if i == 0:
                 data = data.to(device)
                 recon_batch_dir, mu_dir, logvar_dir = model_dir(data)

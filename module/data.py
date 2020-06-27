@@ -148,8 +148,8 @@ def CIFAR10(data_path, batch_size, shuffle=True, train=True, condition_on=None, 
 			# sample randomly without replacement from conditioned class
 			tr_sampler = SubsetRandomSampler(train_ids)
 			an_sampler = SubsetRandomSampler(anomaly_ids)
-			train_dataset = torch.utils.data.DataLoader(dataset, sampler=tr_sampler, batch_size=1, shuffle=False, num_workers=num_workers)
-			anomaly_dataset = torch.utils.data.DataLoader(dataset, sampler=an_sampler, batch_size=1, shuffle=False, num_workers=num_workers)
+			train_dataset = torch.utils.data.DataLoader(dataset, sampler=tr_sampler, batch_size=1024, shuffle=False, num_workers=num_workers)
+			anomaly_dataset = torch.utils.data.DataLoader(dataset, sampler=an_sampler, batch_size=1024, shuffle=False, num_workers=num_workers)
 			print("====================")
 			print("TrainData=>",len(train_dataset))
 			print("AnomalyData=>",len(anomaly_dataset))

@@ -16,7 +16,7 @@ from module.data import CIFAR10
 parser = argparse.ArgumentParser(description='VAE MNIST Example')
 parser.add_argument('--batch-size', type=int, default=128, metavar='N',
                     help='input batch size for training (default: 128)')
-parser.add_argument('--epochs', type=int, default=20, metavar='N',
+parser.add_argument('--epochs', type=int, default=50, metavar='N',
                     help='number of epochs to train (default: 15)')
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='enables CUDA training')
@@ -109,7 +109,10 @@ class VAE_DIR(nn.Module):
             nn.Conv2d(128, 256, kernel_size=3, stride=2),
             nn.BatchNorm2d(256),
             nn.LeakyReLU(0.2),
-            nn.Conv2d(256, 1024, kernel_size=3, stride=2),
+            nn.Conv2d(256, 512, kernel_size=3, stride=2),
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(512, 1024, kernel_size=1, stride=2),
             nn.BatchNorm2d(1024),
             nn.LeakyReLU(0.2),
             Flatten()
@@ -117,7 +120,10 @@ class VAE_DIR(nn.Module):
 
         self.decoder = nn.Sequential(
             UnFlatten(),
-            nn.ConvTranspose2d(1024, 256, kernel_size=3, stride=2),
+            nn.ConvTranspose2d(1024, 512, kernel_size=1, stride=2),
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(0.2),
+            nn.ConvTranspose2d(512, 256, kernel_size=3, stride=2),
             nn.BatchNorm2d(256),
             nn.LeakyReLU(0.2),
             nn.ConvTranspose2d(256, 128, kernel_size=3, stride=2),
@@ -211,7 +217,10 @@ class VAE_CNN(nn.Module):
             nn.Conv2d(128, 256, kernel_size=3, stride=2),
             nn.BatchNorm2d(256),
             nn.LeakyReLU(0.2),
-            nn.Conv2d(256, 1024, kernel_size=3, stride=2),
+            nn.Conv2d(256, 512, kernel_size=3, stride=2),
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(512, 1024, kernel_size=1, stride=2),
             nn.BatchNorm2d(1024),
             nn.LeakyReLU(0.2),
             Flatten()
@@ -219,7 +228,10 @@ class VAE_CNN(nn.Module):
 
         self.decoder = nn.Sequential(
             UnFlatten(),
-            nn.ConvTranspose2d(1024, 256, kernel_size=3, stride=2),
+            nn.ConvTranspose2d(1024, 512, kernel_size=1, stride=2),
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(0.2),
+            nn.ConvTranspose2d(512, 256, kernel_size=3, stride=2),
             nn.BatchNorm2d(256),
             nn.LeakyReLU(0.2),
             nn.ConvTranspose2d(256, 128, kernel_size=3, stride=2),
@@ -533,9 +545,9 @@ if __name__ == "__main__":
             tedl, tedbce = test_dir(epoch, 1.0)
             andl, andbce = anomaly_dir(epoch, 1.0)
         else:
-            trdl, trdbce = train_dir(epoch, 0.1)
-            tedl, tedbce = test_dir(epoch, 0.1)
-            andl, andbce = anomaly_dir(epoch, 0.1)
+            trdl, trdbce = train_dir(epoch, 10.0)
+            tedl, tedbce = test_dir(epoch, 10.0)
+            andl, andbce = anomaly_dir(epoch, 10.0)
         tr_dir_loss.append(trdl)
         te_dir_loss.append(tedl)
         tr_dir_bce.append(trdbce)
