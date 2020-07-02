@@ -356,6 +356,7 @@ y_score_dir = []
 y_score_cnn_beta = []
 y_score_dir_beta = []
 
+"""
 #AE
 for i, (data, _) in enumerate(test_loader):
     with torch.no_grad():
@@ -376,7 +377,7 @@ for i, (data, _) in enumerate(anomaly_loader):
         loss = loss.cpu().detach().numpy()
         #loss = np.round(loss, 1)
         y_score_ae.append(loss)
-
+"""
 # CNN
 for i, (data, _) in enumerate(test_loader):
     with torch.no_grad():
@@ -459,18 +460,18 @@ print(f"y_score_cnn => {len(y_score_cnn)}")
 print(f"y_score_dir => {len(y_score_dir)}")
 print(f"y_true => {len(y_true)}")
 
-fpr_ae, tpr_ae, thresholds_ae = metrics.roc_curve(y_true, y_score_ae)
+#fpr_ae, tpr_ae, thresholds_ae = metrics.roc_curve(y_true, y_score_ae)
 fpr_cnn, tpr_cnn, thresholds_cnn = metrics.roc_curve(y_true, y_score_cnn)
 fpr_dir, tpr_dir, thresholds_dir = metrics.roc_curve(y_true, y_score_dir)
 fpr_cnn_beta, tpr_cnn_beta, thresholds_cnn_beta = metrics.roc_curve(y_true, y_score_cnn_beta)
 fpr_dir_beta, tpr_dir_beta, thresholds_dir_beta = metrics.roc_curve(y_true, y_score_dir_beta)
 #print(f"thresholds => {thresholds}")
-auc_ae = metrics.auc(fpr_ae, tpr_ae)
+#auc_ae = metrics.auc(fpr_ae, tpr_ae)
 auc_cnn = metrics.auc(fpr_cnn, tpr_cnn)
 auc_dir = metrics.auc(fpr_dir, tpr_dir)
 auc_cnn_beta = metrics.auc(fpr_cnn_beta, tpr_cnn_beta)
 auc_dir_beta = metrics.auc(fpr_dir_beta, tpr_dir_beta)
-print(f"AUC_AE => {auc_ae}")
+#print(f"AUC_AE => {auc_ae}")
 print(f"AUC_CNN => {auc_cnn}")
 print(f"AUC_Dir => {auc_dir}")
 print(f"AUC_CNN_B => {auc_cnn_beta}")
@@ -479,8 +480,8 @@ l1, l2, l3, l4, l5 = "Baseline", "Proposed", "Baseline(b=10)", "Proposed(b=10)",
 c1, c2, c3, c4, c5 = "r", "g", "b", "c", "m"
 #plt.plot(fpr_cnn, tpr_cnn, color=c1 ,label=l1)
 plt.plot(fpr_dir, tpr_dir, color=c2 ,label=l2)
-#plt.plot(fpr_cnn_beta, tpr_cnn_beta, color=c3, label=l3)
-#plt.plot(fpr_dir_beta, tpr_dir_beta, color=c4, label=l4)
+plt.plot(fpr_cnn_beta, tpr_cnn_beta, color=c3, label=l3)
+plt.plot(fpr_dir_beta, tpr_dir_beta, color=c4, label=l4)
 #plt.plot(fpr_ae, tpr_ae, color=c5, label=l5)
 plt.legend(loc='lower right')
 plt.xlabel('FPR: False positive rate',fontsize=13)

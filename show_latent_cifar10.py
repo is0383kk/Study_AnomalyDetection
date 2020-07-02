@@ -39,6 +39,38 @@ torch.cuda.manual_seed(args.seed)
 
 device = torch.device("cuda" if args.cuda else "cpu")
 
+def sample_gumbel(shape, eps=1e-20):
+    U = torch.rand(shape)
+    if args.cuda:
+        U = U.cuda()
+    return -torch.log(-torch.log(U + eps) + eps)
+
+
+def gumbel_softmax_sample(logits, temperature):
+    y = logits + sample_gumbel(logits.size())
+    return F.softmax(y / temperature, dim=-1)
+
+
+def gumbel_softmax(logits, temperature, hard=False):
+    """
+    ST-gumple-softmax
+    input: [*, n_class]
+    return: flatten --> [*, n_class] an one-hot vector
+    """
+    y = gumbel_softmax_sample(logits, temperature)
+    
+    if not hard:
+        return y.view(-1, latent_dim * categorical_dim)
+
+    shape = y.size()
+    _, ind = y.max(dim=-1)
+    y_hard = torch.zeros_like(y).view(-1, shape[-1])
+    y_hard.scatter_(1, ind.view(-1, 1), 1)
+    y_hard = y_hard.view(*shape)
+    # Set gradients w.r.t. y_hard gradients w.r.t. y
+    y_hard = (y_hard - y).detach() + y
+    return y_hard.view(-1, latent_dim * categorical_dim)
+
 class Flatten(nn.Module):
     def forward(self, input):
         return input.view(input.size(0), -1)
@@ -326,6 +358,11 @@ model_dir.eval()
 model_cnn.eval()
 model_ae.eval()
 
+# cifar10 dataset (images and labels)
+cifar10_train_dataset = torchvision.datasets.CIFAR10(root="/home/is0383kk/workspace/study/data", train=True, download=True, transform=transform)
+cifar10_test_dataset = torchvision.datasets.CIFAR10(root="/home/is0383kk/workspace/study/data", train=False, download=True, transform=transform)
+
+
 def show(epoch):
     with torch.no_grad():
         for i, (data, _) in enumerate(train_loader):
@@ -342,12 +379,11 @@ def show(epoch):
                 comparison_cnn = torch.cat([data[:n],
                                         recon_batch_cnn[:n]])
                 comparison_ae = torch.cat([data[:n],
-                                        recon_batch_ae[:n]])                        
+                                        recon_batch_ae[:n]])   
                 save_image(comparison_dir.cpu(),
                             'recon/dir/anomaly_' + str(epoch) + '.png', nrow=n)
                 save_image(comparison_cnn.cpu(),
                             'recon/cnn/anomaly_' + str(epoch) + '.png', nrow=n)
                 save_image(comparison_ae.cpu(),
-                            'recon/ae/anomaly_' + str(epoch) + '.png', nrow=n)
-
-show(1)
+                            'recon/ae/anomaly_' + str(epoch) + '.png', nrow=n)   
+            break
